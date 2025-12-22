@@ -7,57 +7,110 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.FitCenter
 import com.vltv.play.databinding.ActivityHomeBinding
-import com.vltv.play.DownloadHelper  // ✅ ADICIONADO IMPORT
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
-import kotlin.random.Random
+
+// MODELO PARA FILMES/SÉRIES RECENTES
+data class ConteudoRecente(
+    val tipo: String,          // "movie" ou "series"
+    val id: Int,               // stream_id ou series_id
+    val titulo: String,
+    val capa: String?,
+    val rating: Double,
+    val lastModified: Long
+)
+
+// ADAPTER SIMPLES PARA A LISTA HORIZONTAL
+class RecentAdapter(
+    private val itens: List<ConteudoRecente>,
+    private val onClick: (ConteudoRecente) -> Unit
+) : androidx.recyclerview.widget.RecyclerView.Adapter<RecentAdapter.VH>() {
+
+    inner class VH(val binding: ItemRecentBinding) :
+        androidx.recyclerview.widget.RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(
+        parent: android.view.ViewGroup,
+        viewType: Int
+    ): VH {
+        val inflater = android.view.LayoutInflater.from(parent.context)
+        val binding = ItemRecentBinding.inflate(inflater, parent, false)
+        return VH(binding)
+    }
+
+    override fun getItemCount(): Int = itens.size
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val item = itens[position]
+        holder.binding.tvTitle.text = item.titulo
+        holder.binding.tvType.text = if (item.tipo == "movie") "Filme" else "Série"
+
+        val context = holder.itemView.context
+        if (!item.capa.isNullOrEmpty()) {
+            Glide.with(context)
+                .load(item.capa)
+                .transform(FitCenter())
+                .into(holder.binding.imgCover)
+        } else {
+            holder.binding.imgCover.setImageResource(android.R.color.darker_gray)
+        }
+
+        holder.itemView.setOnClickListener { onClick(item) }
+    }
+}
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
-    private val TMDB_API_KEY = "9b73f5dd15b8165b1b57419be2f29128"
+
+    // BASE DO SERVIDOR (MESMO HOST DA SUA M3U)
+    private val BASE_URL = "http://tvblack.shop"
+    private val USERNAME = "241394"
+    private val PASSWORD = "486576"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Receiver de downloads ✅ JÁ ESTÁ CERTO
         DownloadHelper.registerReceiver(this)
 
+        setupRecycler()
         setupClicks()
     }
 
-    // resto do código continua EXATAMENTE IGUAL...
     override fun onResume() {
         super.onResume()
-        carregarBannerAleatorio()
+        carregarRecentesDoServidor()
+    }
+
+    private fun setupRecycler() {
+        binding.rvRecent.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
     }
 
     private fun setupClicks() {
-        // TV AO VIVO
         binding.cardLiveTv.setOnClickListener {
             startActivity(Intent(this, LiveTvActivity::class.java))
         }
 
-        // FILMES (VOD)
         binding.cardMovies.setOnClickListener {
             startActivity(Intent(this, VodActivity::class.java))
         }
 
-        // SÉRIES
         binding.cardSeries.setOnClickListener {
             startActivity(Intent(this, SeriesActivity::class.java))
         }
 
-        // Campo de busca no cabeçalho
         binding.etSearch.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val texto = v.text.toString().trim()
@@ -72,7 +125,6 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        // Botão de configurações / menu
         binding.btnSettings.setOnClickListener {
             val itens = arrayOf("Meus downloads", "Configurações", "Sair")
 
@@ -87,9 +139,6 @@ class HomeActivity : AppCompatActivity() {
                 }
                 .show()
         }
-
-        // Foco inicial no banner
-        binding.cardBanner.requestFocus()
     }
 
     private fun showKeyboard() {
@@ -114,50 +163,87 @@ class HomeActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun carregarBannerAleatorio() {
-        val urlString =
-            "https://api.themoviedb.org/3/trending/all/day?api_key=$TMDB_API_KEY&language=pt-BR"
+    // NOVA FUNÇÃO: BUSCA FILMES + SÉRIES RECENTES DO SERVIDOR
+    private fun carregarRecentesDoServidor() {
+        val urlFilmes =
+            "$BASE_URL/player_api.php?username=$USERNAME&password=$PASSWORD&action=get_vod_streams"
+        val urlSeries =
+            "$BASE_URL/player_api.php?username=$USERNAME&password=$PASSWORD&action=get_series"
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val jsonTxt = URL(urlString).readText()
-                val json = JSONObject(jsonTxt)
-                val results = json.getJSONArray("results")
+                val filmesJson = URL(urlFilmes).readText()
+                val seriesJson = URL(urlSeries).readText()
 
-                if (results.length() > 0) {
-                    val randomIndex = Random.nextInt(results.length())
-                    val item = results.getJSONObject(randomIndex)
+                val filmesArray = JSONArray(filmesJson)
+                val seriesArray = JSONArray(seriesJson)
 
-                    val titulo = if (item.has("title"))
-                        item.getString("title")
-                    else
-                        item.getString("name")
+                val lista = mutableListOf<ConteudoRecente>()
 
-                    val overview = if (item.has("overview"))
-                        item.getString("overview")
-                    else
-                        ""
+                // FILMES
+                for (i in 0 until filmesArray.length()) {
+                    val obj = filmesArray.getJSONObject(i)
+                    val id = obj.optInt("stream_id")
+                    val titulo = obj.optString("title", obj.optString("name", ""))
+                    val cover = obj.optString("cover", null)
+                    val rating = obj.optDouble("rating_5based", 0.0)
+                    val lastMod = obj.optLong("last_modified", 0L)
 
-                    val backdropPath = item.getString("backdrop_path")
+                    lista.add(
+                        ConteudoRecente(
+                            tipo = "movie",
+                            id = id,
+                            titulo = titulo,
+                            capa = cover,
+                            rating = rating,
+                            lastModified = lastMod
+                        )
+                    )
+                }
 
-                    if (backdropPath != "null") {
-                        val imageUrl = "https://image.tmdb.org/t/p/w1280$backdropPath"
+                // SÉRIES
+                for (i in 0 until seriesArray.length()) {
+                    val obj = seriesArray.getJSONObject(i)
+                    val id = obj.optInt("series_id")
+                    val titulo = obj.optString("title", obj.optString("name", ""))
+                    val cover = obj.optString("cover", null)
+                    val rating = obj.optDouble("rating_5based", 0.0)
+                    val lastMod = obj.optLong("last_modified", 0L)
 
-                        withContext(Dispatchers.Main) {
-                            binding.tvBannerTitle.text = titulo
-                            binding.tvBannerOverview.text = overview
+                    lista.add(
+                        ConteudoRecente(
+                            tipo = "series",
+                            id = id,
+                            titulo = titulo,
+                            capa = cover,
+                            rating = rating,
+                            lastModified = lastMod
+                        )
+                    )
+                }
 
-                            Glide.with(this@HomeActivity)
-                                .load(imageUrl)
-                                .transform(FitCenter())
-                                .placeholder(android.R.color.black)
-                                .into(binding.imgBanner)
-                        }
-                    }
+                // ORDENA POR MAIS RECENTE
+                val ordenado = lista.sortedByDescending { it.lastModified }.take(30)
+
+                withContext(Dispatchers.Main) {
+                    binding.rvRecent.adapter =
+                        RecentAdapter(ordenado) { item -> abrirDetalhes(item) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    private fun abrirDetalhes(item: ConteudoRecente) {
+        if (item.tipo == "movie") {
+            val intent = Intent(this, DetailsActivity::class.java)
+            intent.putExtra("stream_id", item.id)
+            startActivity(intent)
+        } else {
+            val intent = Intent(this, SeriesDetailsActivity::class.java)
+            intent.putExtra("series_id", item.id)
+            startActivity(intent)
         }
     }
 }
