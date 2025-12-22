@@ -15,12 +15,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
+import java.net.URLEncoder
 import java.net.URL
+
+// Configuração simples do TMDB
+private const val TMDB_API_KEY = "9b73f5dd15b8165b1b57419be2f29128"
+private const val TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
-    private val MIN_YEAR = 2023 // só lançamentos a partir desse ano
+    private val MIN_YEAR = 2023 // ano mínimo para exibir em "recentes"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,7 +134,8 @@ class HomeActivity : AppCompatActivity() {
     private fun carregarRecentMovies() {
         carregarRecentesGenerico(
             actionParam = "get_vod_streams",
-            expectedType = "movie"
+            expectedType = "movie",
+            tmdbType = "movie"
         ) { lista ->
             binding.rvRecentMovies.adapter = RecentItemAdapter(lista) { item ->
                 abrirDetalhe(item)
@@ -139,7 +146,8 @@ class HomeActivity : AppCompatActivity() {
     private fun carregarRecentSeries() {
         carregarRecentesGenerico(
             actionParam = "get_series",
-            expectedType = "series"
+            expectedType = "series",
+            tmdbType = "tv"
         ) { lista ->
             binding.rvRecentSeries.adapter = RecentItemAdapter(lista) { item ->
                 abrirDetalhe(item)
@@ -148,11 +156,12 @@ class HomeActivity : AppCompatActivity() {
     }
 
     /**
-     * Função genérica que lê do Xtream e filtra por tipo + ano.
+     * Função genérica que lê do Xtream, enriquece com TMDB, filtra por ano e ordena.
      */
     private fun carregarRecentesGenerico(
         actionParam: String,
         expectedType: String,
+        tmdbType: String,
         onResult: (List<RecentItem>) -> Unit
     ) {
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
@@ -176,23 +185,35 @@ class HomeActivity : AppCompatActivity() {
                     val obj = arr.getJSONObject(i)
 
                     val streamType = obj.optString("stream_type", expectedType)
-                    if (streamType != expectedType) continue
-
-                    val yearStr = obj.optString("year", "")
-                    val year = yearStr.toIntOrNull() ?: 0
-                    if (year < MIN_YEAR) continue
+                    if (streamType != expectedType && actionParam == "get_vod_streams") continue
 
                     val id = obj.optInt("stream_id", 0)
                     val name = obj.optString("name", "Sem título")
                     val icon = obj.optString("stream_icon", "")
                     val ext = obj.optString("container_extension", "mp4")
+                    val yearStr = obj.optString("year", "")
+                    val yearFromServer = yearStr.toIntOrNull() ?: 0
+
+                    // Buscar ano e poster no TMDB (com cache)
+                    val tmdbInfo = buscarInfoTmdbComCache(
+                        context = this@HomeActivity,
+                        streamId = id,
+                        titulo = name,
+                        tipo = tmdbType
+                    )
+
+                    val finalYear = if (tmdbInfo.year > 0) tmdbInfo.year else yearFromServer
+                    if (finalYear < MIN_YEAR) continue
+
+                    val finalIcon = if (tmdbInfo.posterUrl.isNotBlank()) tmdbInfo.posterUrl else icon
 
                     lista.add(
                         RecentItem(
                             streamId = id,
                             title = name,
-                            icon = icon,
-                            extension = ext
+                            icon = finalIcon,
+                            extension = ext,
+                            year = finalYear
                         )
                     )
                 }
@@ -200,8 +221,87 @@ class HomeActivity : AppCompatActivity() {
             }
 
             withContext(Dispatchers.Main) {
-                onResult(lista)
+                // Ordenar do ano mais novo para o mais antigo; se empatar, usa streamId
+                val ordenada = lista
+                    .sortedWith(
+                        compareByDescending<RecentItem> { it.year }
+                            .thenByDescending { it.streamId }
+                    )
+                onResult(ordenada)
             }
+        }
+    }
+
+    /**
+     * Modelo de info vinda do TMDB para cache/local.
+     */
+    data class TmdbInfo(
+        val year: Int,
+        val posterUrl: String
+    )
+
+    /**
+     * Busca dados no TMDB usando cache em SharedPreferences.
+     * Cache por streamId para evitar várias chamadas.
+     */
+    private fun buscarInfoTmdbComCache(
+        context: Context,
+        streamId: Int,
+        titulo: String,
+        tipo: String // "movie" ou "tv"
+    ): TmdbInfo {
+        val prefs = context.getSharedPreferences("tmdb_cache", Context.MODE_PRIVATE)
+        val cacheKey = "tmdb_$tipo_$streamId"
+
+        // Tenta cache primeiro
+        val cached = prefs.getString(cacheKey, null)
+        if (cached != null) {
+            return try {
+                val obj = JSONObject(cached)
+                TmdbInfo(
+                    year = obj.optInt("year", 0),
+                    posterUrl = obj.optString("poster", "")
+                )
+            } catch (e: Exception) {
+                TmdbInfo(0, "")
+            }
+        }
+
+        // Se não tiver cache, chama TMDB rapidamente (com try/catch)
+        return try {
+            val encodedTitle = URLEncoder.encode(titulo, "UTF-8")
+            val url =
+                "$TMDB_BASE_URL/search/$tipo?api_key=$TMDB_API_KEY&language=pt-BR&query=$encodedTitle"
+
+            val jsonTxt = URL(url).readText()
+            val root = JSONObject(jsonTxt)
+            val results = root.optJSONArray("results") ?: JSONArray()
+            if (results.length() == 0) {
+                TmdbInfo(0, "")
+            } else {
+                val first = results.getJSONObject(0)
+
+                val dateField = if (tipo == "movie") {
+                    first.optString("release_date", "")
+                } else {
+                    first.optString("first_air_date", "")
+                }
+                val year = dateField.take(4).toIntOrNull() ?: 0
+
+                val posterPath = first.optString("poster_path", "")
+                val posterUrl =
+                    if (posterPath.isNotBlank()) "https://image.tmdb.org/t/p/w500$posterPath" else ""
+
+                // Salva em cache
+                val toSave = JSONObject()
+                    .put("year", year)
+                    .put("poster", posterUrl)
+                prefs.edit().putString(cacheKey, toSave.toString()).apply()
+
+                TmdbInfo(year = year, posterUrl = posterUrl)
+            }
+        } catch (_: Exception) {
+            TmdbInfo(0, "")
         }
     }
 }
@@ -211,7 +311,8 @@ data class RecentItem(
     val streamId: Int,
     val title: String,
     val icon: String,
-    val extension: String
+    val extension: String,
+    val year: Int
 )
 
 /** Adapter usado pelas duas listas horizontais */
