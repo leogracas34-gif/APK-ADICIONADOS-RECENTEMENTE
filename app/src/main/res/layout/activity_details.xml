@@ -19,8 +19,7 @@
             android:layout_height="300dp"
             android:layout_marginBottom="16dp"
             android:scaleType="centerCrop"
-            android:background="#333333"
-            app:cardCornerRadius="12dp" />
+            android:background="#333333" />
 
         <!-- TÍTULO -->
         <TextView
@@ -33,41 +32,103 @@
             android:textStyle="bold"
             android:layout_marginBottom="12dp" />
 
-        <!-- BOTÃO PLAY -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/btnPlay"
+        <!-- LINHA PLAY + FAVORITO -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <!-- BOTÃO PLAY COMO CARDVIEW CLICÁVEL -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/btnPlay"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="6dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:background="@drawable/bg_gradient_red">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="▶ PLAY"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_marginEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Assista agora"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- BOTÃO FAVORITO -->
+            <ImageButton
+                android:id="@+id/btnFavorite"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:background="@android:color/transparent"
+                android:src="@drawable/ic_star_border"
+                android:tint="#FFFFFF"
+                android:contentDescription="Favorito" />
+        </LinearLayout>
+
+        <!-- BOTÃO CONTINUAR -->
+        <Button
+            android:id="@+id/btnResume"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Continuar de onde parei"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:background="@color/design_default_color_primary"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
+
+        <!-- ÁREA DE DOWNLOAD -->
+        <LinearLayout
+            android:id="@+id/btnDownloadArea"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="12dp"
             android:layout_marginBottom="20dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="6dp"
+            android:background="@drawable/bg_download_area"
             android:clickable="true"
             android:focusable="true">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="60dp"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:background="@drawable/bg_gradient_red">
+            <ImageView
+                android:id="@+id/imgDownloadState"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_dl_arrow"
+                android:tint="#FFFFFF" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="▶ PLAY"
-                    android:textColor="#FFFFFF"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_marginEnd="8dp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Assista agora"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
-            </LinearLayout>
-        </androidx.cardview.widget.CardView>
+            <TextView
+                android:id="@+id/tvDownloadState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Baixar"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
+        </LinearLayout>
 
         <!-- INFORMAÇÕES -->
         <TextView
@@ -83,52 +144,34 @@
             android:id="@+id/tvRating"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Nota: 4.2/5"
+            android:text="Nota: N/A"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:layout_marginBottom="8dp" />
 
         <TextView
-            android:id="@+id/tvGenero"
+            android:id="@+id/tvGenre"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Gênero: Ação"
+            android:text="Gênero: N/A"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:layout_marginBottom="8dp" />
 
         <TextView
-            android:id="@+id/tvDuracao"
+            android:id="@+id/tvDirector"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Duração: 120 min"
+            android:text="Diretor: N/A"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:layout_marginBottom="8dp" />
 
         <TextView
-            android:id="@+id/tvAno"
+            android:id="@+id/tvCast"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Ano: 2023"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/tvDiretor"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Diretor: ..."
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/tvElenco"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Elenco: ..."
+            android:text="Elenco: N/A"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:layout_marginBottom="12dp" />
@@ -144,15 +187,16 @@
             android:layout_marginBottom="8dp" />
 
         <TextView
-            android:id="@+id/tvSinopse"
+            android:id="@+id/tvPlot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Sinopse do filme aqui..."
             android:textColor="#CCCCCC"
             android:textSize="14sp"
-            android:lineSpacing="2dp"
+            android:lineSpacingExtra="2dp"
             android:layout_marginBottom="16dp" />
 
+        <!-- FORMATO / CONTAINER (OPCIONAL) -->
         <TextView
             android:id="@+id/tvContainer"
             android:layout_width="match_parent"
