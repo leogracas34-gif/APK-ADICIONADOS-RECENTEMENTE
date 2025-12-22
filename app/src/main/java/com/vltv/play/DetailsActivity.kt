@@ -4,18 +4,23 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.*
+import android.widget.Button
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import com.bumptech.glide.Glide
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.net.URL
 
 class DetailsActivity : AppCompatActivity() {
@@ -76,7 +81,6 @@ class DetailsActivity : AppCompatActivity() {
 
         tvTitle.text = movieTitle
 
-        // Poster vindo da Home/VOD
         if (icon != null) {
             Glide.with(this)
                 .load(icon)
@@ -162,7 +166,7 @@ class DetailsActivity : AppCompatActivity() {
             }
         }
 
-        // Detalhes: primeiro Xtream direto, depois TMDB para complementar
+        // Detalhes: primeiro Xtream direto, depois TMDB
         carregarDetalhesXtream(streamId)
         carregarDetalhesTmdb(movieTitle)
     }
@@ -177,7 +181,8 @@ class DetailsActivity : AppCompatActivity() {
     private fun carregarDetalhesXtream(streamId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = "$BASE_URL/player_api.php?username=$USER&password=$PASS&action=get_vod_info&stream_id=$streamId"
+                val url =
+                    "$BASE_URL/player_api.php?username=$USER&password=$PASS&action=get_vod_info&stream_id=$streamId"
                 val jsonText = URL(url).readText()
                 val jsonObj = JSONObject(jsonText)
                 val vodInfo = jsonObj.optJSONObject("movie_data") ?: jsonObj
@@ -186,7 +191,6 @@ class DetailsActivity : AppCompatActivity() {
                     preencherDetalhesXtream(vodInfo)
                 }
             } catch (e: Exception) {
-                // Se der erro, usa seu Retrofit padrão
                 carregarDetalhesRetrofit(streamId)
             }
         }
@@ -206,7 +210,8 @@ class DetailsActivity : AppCompatActivity() {
         tvPlot.text = sinopse
         tvGenre.text = if (genero.isNotBlank()) "Gênero: $genero" else "Gênero: N/A"
         tvCast.text = if (elenco.isNotBlank()) "Elenco: $elenco" else "Elenco: N/A"
-        tvRating.text = if (rating > 0) "Nota: ${String.format("%.1f", rating)}" else "Nota: N/A"
+        tvRating.text =
+            if (rating > 0) "Nota: ${String.format("%.1f", rating)}" else "Nota: N/A"
         tvDirector.text = if (diretor.isNotBlank()) "Diretor: $diretor" else "Diretor: N/A"
 
         if (capa.isNotBlank()) {
@@ -280,7 +285,8 @@ class DetailsActivity : AppCompatActivity() {
                     }
 
                     if (movie.poster_path != null) {
-                        val urlPoster = "https://image.tmdb.org/t/p/w500${movie.poster_path}"
+                        val urlPoster =
+                            "https://image.tmdb.org/t/p/w500${movie.poster_path}"
                         Glide.with(this@DetailsActivity)
                             .load(urlPoster)
                             .into(imgPoster)
@@ -291,7 +297,6 @@ class DetailsActivity : AppCompatActivity() {
                     call: Call<TmdbSearchResponse>,
                     t: Throwable
                 ) {
-                    // silencioso
                 }
             })
     }
@@ -397,10 +402,7 @@ class DetailsActivity : AppCompatActivity() {
         btnFavorite.setImageResource(res)
     }
 
-    // ---------- DETECÇÃO TV/CELULAR ----------
-
     private fun isTelevisionDevice(): Boolean {
-        // Se não precisar tratar TV diferente, pode deixar sempre false
         return false
     }
 }
