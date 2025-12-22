@@ -63,7 +63,7 @@
                 android:focusable="true" />
         </LinearLayout>
 
-        <!-- TÍTULO + LISTA ADICIONADOS RECENTEMENTE -->
+        <!-- TÍTULO + LISTA ADICIONADOS RECENTEMENTE (só filmes) -->
         <TextView
             android:id="@+id/tvRecentTitle"
             android:layout_width="match_parent"
@@ -77,7 +77,7 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvRecent"
             android:layout_width="match_parent"
-            android:layout_height="190dp"
+            android:layout_height="160dp"
             android:layout_marginBottom="16dp"
             android:overScrollMode="never"
             android:scrollbars="none" />
