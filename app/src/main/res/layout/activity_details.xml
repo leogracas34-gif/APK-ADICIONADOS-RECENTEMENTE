@@ -3,168 +3,174 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#101010"
-    android:fillViewport="true"
-    android:padding="16dp">
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="24dp">
 
-        <!-- POSTER PRINCIPAL -->
-        <ImageView
-            android:id="@+id/imgPoster"
-            android:layout_width="match_parent"
-            android:layout_height="300dp"
-            android:layout_marginBottom="16dp"
-            android:scaleType="centerCrop"
-            android:background="#333333" />
-
-        <!-- TÍTULO -->
-        <TextView
-            android:id="@+id/tvTitle"
+        <!-- Topo: Capa + estrela + detalhes -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Título do Filme"
-            android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp" />
+            android:orientation="horizontal">
 
-        <!-- BOTÃO PLAY -->
-        <Button
-            android:id="@+id/btnPlay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="▶ PLAY"
-            android:textAllCaps="false"
-            android:background="@drawable/bg_gradient_red"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:layout_marginBottom="12dp" />
+            <!-- Capa + estrela em cima (TAMANHO REDUZIDO) -->
+            <FrameLayout
+                android:layout_width="110dp"
+                android:layout_height="165dp">
 
-        <!-- BOTÃO RESUMIR -->
-        <Button
-            android:id="@+id/btnResume"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Continuar de onde parei"
-            android:textAllCaps="false"
-            android:background="#333333"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone" />
+                <ImageView
+                    android:id="@+id/imgPoster"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:src="@mipmap/ic_launcher"
+                    android:background="#333333" />
 
-        <!-- FAVORITO + DOWNLOAD -->
+                <ImageButton
+                    android:id="@+id/btnFavorite"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="6dp"
+                    android:background="@android:color/transparent"
+                    android:src="@drawable/ic_star_border"
+                    android:tint="#FFFFFF" />
+            </FrameLayout>
+
+            <!-- Detalhes à direita -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Carregando..."
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvRating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="#FFC107"
+                    android:paddingHorizontal="6dp"
+                    android:paddingVertical="2dp"
+                    android:text="Nota: --"
+                    android:textColor="#000000"
+                    android:textStyle="bold"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvGenre"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Gênero: ..."
+                    android:textColor="#BBBBBB"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvDirector"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Diretor: ..."
+                    android:textColor="#BBBBBB"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tvCast"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Elenco: ..."
+                    android:textColor="#BBBBBB"
+                    android:textSize="13sp"
+                    android:maxLines="3"
+                    android:ellipsize="end" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Botão ASSISTIR (download oculto) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginTop="24dp">
 
-            <ImageButton
-                android:id="@+id/btnFavorite"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@android:color/transparent"
-                android:src="@drawable/ic_star_border"
-                android:tint="#FFFFFF"
-                android:contentDescription="Favorito" />
+            <!-- ASSISTIR -->
+            <Button
+                android:id="@+id/btnPlay"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:background="@drawable/bg_home_red"
+                android:text="ASSISTIR"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
 
+            <!-- Área de download ocultada -->
             <LinearLayout
                 android:id="@+id/btnDownloadArea"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="12dp"
-                android:background="#222222"
-                android:layout_marginStart="12dp">
+                android:layout_height="0dp"
+                android:visibility="gone"
+                android:clickable="false"
+                android:focusable="false">
 
                 <ImageView
                     android:id="@+id/imgDownloadState"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_dl_arrow"
-                    android:tint="#FFFFFF" />
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/tvDownloadState"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Baixar"
-                    android:textColor="#FFFFFF"
-                    android:textSize="14sp"
-                    android:layout_marginStart="8dp" />
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- INFORMAÇÕES -->
-        <TextView
+        <!-- Continuar assistindo -->
+        <Button
+            android:id="@+id/btnResume"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="DETALHES"
-            android:textColor="#E50914"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="12dp" />
-
-        <TextView
-            android:id="@+id/tvRating"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Nota: 4.2/5"
+            android:layout_height="50dp"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#555555"
+            android:text="CONTINUAR ASSISTINDO"
             android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp" />
+            android:visibility="gone" />
 
-        <TextView
-            android:id="@+id/tvGenre"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Gênero: Ação"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/tvDirector"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Diretor: ..."
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/tvCast"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Elenco: ..."
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:layout_marginBottom="12dp" />
-
-        <!-- SINOPSE -->
+        <!-- Sinopse -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
             android:text="SINOPSE"
-            android:textColor="#E50914"
+            android:textColor="#FFFFFF"
             android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tvPlot"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Sinopse do filme aqui..."
-            android:textColor="#CCCCCC"
-            android:textSize="14sp"
-            android:lineSpacingExtra="2dp"
-            android:layout_marginBottom="16dp" />
-
+            android:layout_marginTop="8dp"
+            android:lineSpacingExtra="4dp"
+            android:text="..."
+            android:textColor="#DDDDDD"
+            android:textSize="14sp" />
     </LinearLayout>
 </ScrollView>
