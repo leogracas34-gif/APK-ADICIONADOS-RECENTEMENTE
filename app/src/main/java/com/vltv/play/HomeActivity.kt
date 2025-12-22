@@ -39,8 +39,9 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Só filmes no celular
         carregarRecentMovies()
-            }
+    }
 
     private fun setupClicks() {
         binding.cardLiveTv.setOnClickListener {
@@ -92,11 +93,7 @@ class HomeActivity : AppCompatActivity() {
             abrirDetalhe(item)
         }
 
-        binding.rvRecentSeries.layoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        binding.rvRecentSeries.adapter = RecentItemAdapter(emptyList()) { item ->
-            abrirDetalhe(item)
-        }
+        // ATENÇÃO: nenhuma referência a rvRecentSeries aqui
     }
 
     private fun abrirDetalhe(item: RecentItem) {
@@ -142,17 +139,7 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun carregarRecentSeries() {
-        carregarRecentesGenerico(
-            actionParam = "get_series",
-            expectedType = "series",
-            tmdbType = "tv"
-        ) { lista ->
-            binding.rvRecentSeries.adapter = RecentItemAdapter(lista) { item ->
-                abrirDetalhe(item)
-            }
-        }
-    }
+    // >>> NÃO TEM carregarRecentSeries aqui na versão de celular <<<
 
     /**
      * Função genérica que lê do Xtream, enriquece com TMDB, filtra por ano e ordena.
