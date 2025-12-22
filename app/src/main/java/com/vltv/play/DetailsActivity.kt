@@ -4,24 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.PopupMenu
 import com.bumptech.glide.Glide
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.net.URL
 
 class DetailsActivity : AppCompatActivity() {
 
@@ -45,10 +34,6 @@ class DetailsActivity : AppCompatActivity() {
 
     private enum class DownloadState { BAIXAR, BAIXANDO, BAIXADO }
     private var downloadState: DownloadState = DownloadState.BAIXAR
-
-    private val BASE_URL = "http://tvblack.shop"
-    private val USER = "241394"
-    private val PASS = "486576"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,12 +65,10 @@ class DetailsActivity : AppCompatActivity() {
 
         tvTitle.text = movieTitle
 
-        if (icon != null) {
-            Glide.with(this)
-                .load(icon)
-                .placeholder(R.mipmap.ic_launcher)
-                .into(imgPoster)
-        }
+        Glide.with(this)
+            .load(icon)
+            .placeholder(R.mipmap.ic_launcher)
+            .into(imgPoster)
 
         val isFavInicial = getFavMovies(this).contains(streamId)
         atualizarIconeFavorito(isFavInicial)
@@ -152,6 +135,7 @@ class DetailsActivity : AppCompatActivity() {
                                 startActivity(Intent(this, DownloadsActivity::class.java))
                                 true
                             }
+
                             else -> false
                         }
                     }
@@ -165,134 +149,13 @@ class DetailsActivity : AppCompatActivity() {
             }
         }
 
-        carregarDetalhesXtream(streamId)
+        carregarDetalhes(streamId)
         carregarDetalhesTmdb(movieTitle)
     }
 
     override fun onResume() {
         super.onResume()
         restaurarEstadoDownload()
-    }
-
-    private fun carregarDetalhesXtream(streamId: Int) {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val url =
-                    "$BASE_URL/player_api.php?username=$USER&password=$PASS&action=get_vod_info&stream_id=$streamId"
-                val jsonText = URL(url).readText()
-                val jsonObj = JSONObject(jsonText)
-                val vodInfo = jsonObj.optJSONObject("movie_data") ?: jsonObj
-
-                withContext(Dispatchers.Main) {
-                    preencherDetalhesXtream(vodInfo)
-                }
-            } catch (e: Exception) {
-                carregarDetalhesRetrofit(streamId)
-            }
-        }
-    }
-
-    private fun preencherDetalhesXtream(info: JSONObject) {
-        val titulo = info.optString("name", movieTitle)
-        val capa = info.optString("stream_icon", "")
-        val sinopse = info.optString("plot", "Sinopse indisponível.")
-        val genero = info.optString("genre", "")
-        val rating = info.optDouble("rating", 0.0)
-        val diretor = info.optString("director", "")
-        val elenco = info.optString("cast", "")
-
-        movieTitle = titulo
-
-        tvPlot.text = sinopse
-        tvGenre.text = if (genero.isNotBlank()) "Gênero: $genero" else "Gênero: N/A"
-        tvCast.text = if (elenco.isNotBlank()) "Elenco: $elenco" else "Elenco: N/A"
-        tvRating.text =
-            if (rating > 0) "Nota: ${String.format("%.1f", rating)}" else "Nota: N/A"
-        tvDirector.text = if (diretor.isNotBlank()) "Diretor: $diretor" else "Diretor: N/A"
-
-        if (capa.isNotBlank()) {
-            Glide.with(this)
-                .load(capa)
-                .placeholder(R.mipmap.ic_launcher)
-                .into(imgPoster)
-        }
-    }
-
-    private fun carregarDetalhesRetrofit(streamId: Int) {
-        val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
-        val username = prefs.getString("username", "") ?: ""
-        val password = prefs.getString("password", "") ?: ""
-
-        XtreamApi.service.getVodInfo(username, password, vodId = streamId)
-            .enqueue(object : Callback<VodInfoResponse> {
-                override fun onResponse(
-                    call: Call<VodInfoResponse>,
-                    response: Response<VodInfoResponse>
-                ) {
-                    if (response.isSuccessful && response.body()?.info != null) {
-                        val info = response.body()!!.info!!
-                        preencherDetalhesRetrofit(info)
-                    } else {
-                        tvPlot.text = "Não foi possível carregar detalhes."
-                    }
-                }
-
-                override fun onFailure(call: Call<VodInfoResponse>, t: Throwable) {
-                    tvPlot.text = "Erro de conexão ao buscar detalhes."
-                }
-            })
-    }
-
-    private fun preencherDetalhesRetrofit(info: VodInfo) {
-        tvPlot.text = info.plot ?: "Sinopse indisponível."
-        tvGenre.text = "Gênero: ${info.genre ?: "N/A"}"
-        tvCast.text = "Elenco: ${info.cast ?: "N/A"}"
-        tvRating.text = "Nota: ${info.rating ?: "N/A"}"
-        tvDirector.text = "Diretor: ${info.director ?: "N/A"}"
-
-        if (!info.movie_image.isNullOrEmpty()) {
-            Glide.with(this)
-                .load(info.movie_image)
-                .into(imgPoster)
-        }
-    }
-
-    private fun carregarDetalhesTmdb(titulo: String) {
-        val apiKey = TmdbConfig.API_KEY
-        if (apiKey.isBlank()) return
-
-        TmdbApi.service.searchMovie(apiKey, titulo)
-            .enqueue(object : Callback<TmdbSearchResponse> {
-                override fun onResponse(
-                    call: Call<TmdbSearchResponse>,
-                    response: Response<TmdbSearchResponse>
-                ) {
-                    val movie = response.body()?.results?.firstOrNull() ?: return
-
-                    if (tvPlot.text.isNullOrBlank() || tvPlot.text == "Sinopse indisponível.") {
-                        tvPlot.text = movie.overview ?: "Sinopse indisponível."
-                    }
-
-                    if (tvRating.text.isNullOrBlank() || tvRating.text.contains("N/A")) {
-                        val nota = movie.vote_average ?: 0f
-                        tvRating.text = "Nota: ${String.format("%.1f", nota)}"
-                    }
-
-                    if (movie.poster_path != null) {
-                        val urlPoster =
-                            "https://image.tmdb.org/t/p/w500${movie.poster_path}"
-                        Glide.with(this@DetailsActivity)
-                            .load(urlPoster)
-                            .into(imgPoster)
-                    }
-                }
-
-                override fun onFailure(
-                    call: Call<TmdbSearchResponse>,
-                    t: Throwable
-                ) {
-                }
-            })
     }
 
     private fun montarUrlFilme(): String {
@@ -354,10 +217,12 @@ class DetailsActivity : AppCompatActivity() {
                 imgDownloadState.setImageResource(R.drawable.ic_dl_arrow)
                 tvDownloadState.text = getProgressText()
             }
+
             DownloadState.BAIXANDO -> {
                 imgDownloadState.setImageResource(R.drawable.ic_dl_loading)
                 tvDownloadState.text = getProgressText()
             }
+
             DownloadState.BAIXADO -> {
                 imgDownloadState.setImageResource(R.drawable.ic_dl_done)
                 tvDownloadState.text = getProgressText()
@@ -394,7 +259,76 @@ class DetailsActivity : AppCompatActivity() {
         btnFavorite.setImageResource(res)
     }
 
-    private fun isTelevisionDevice(): Boolean {
-        return false
+    private fun carregarDetalhes(streamId: Int) {
+        val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
+        val username = prefs.getString("username", "") ?: ""
+        val password = prefs.getString("password", "") ?: ""
+
+        XtreamApi.service.getVodInfo(username, password, vodId = streamId)
+            .enqueue(object : Callback<VodInfoResponse> {
+                override fun onResponse(
+                    call: Call<VodInfoResponse>,
+                    response: Response<VodInfoResponse>
+                ) {
+                    if (response.isSuccessful && response.body()?.info != null) {
+                        val info = response.body()!!.info!!
+
+                        tvPlot.text = info.plot ?: "Sinopse indisponível."
+                        tvGenre.text = "Gênero: ${info.genre ?: "N/A"}"
+                        tvCast.text = "Elenco: ${info.cast ?: "N/A"}"
+                        tvRating.text = "Nota: ${info.rating ?: "N/A"}"
+                        tvDirector.text = "Diretor: ${info.director ?: "N/A"}"
+
+                        if (!info.movie_image.isNullOrEmpty()) {
+                            Glide.with(this@DetailsActivity)
+                                .load(info.movie_image)
+                                .into(imgPoster)
+                        }
+                    } else {
+                        tvPlot.text = "Não foi possível carregar detalhes."
+                    }
+                }
+
+                override fun onFailure(call: Call<VodInfoResponse>, t: Throwable) {
+                    tvPlot.text = "Erro de conexão ao buscar detalhes."
+                }
+            })
+    }
+
+    private fun carregarDetalhesTmdb(titulo: String) {
+        val apiKey = TmdbConfig.API_KEY
+        if (apiKey.isBlank()) return
+
+        TmdbApi.service.searchMovie(apiKey, titulo)
+            .enqueue(object : Callback<TmdbSearchResponse> {
+                override fun onResponse(
+                    call: Call<TmdbSearchResponse>,
+                    response: Response<TmdbSearchResponse>
+                ) {
+                    val movie = response.body()?.results?.firstOrNull() ?: return
+
+                    if (tvPlot.text.isNullOrBlank() || tvPlot.text == "Sinopse indisponível.") {
+                        tvPlot.text = movie.overview ?: "Sinopse indisponível."
+                    }
+
+                    if (tvRating.text.isNullOrBlank() || tvRating.text.contains("N/A")) {
+                        val nota = movie.vote_average ?: 0f
+                        tvRating.text = "Nota: ${String.format("%.1f", nota)}"
+                    }
+
+                    if (movie.poster_path != null) {
+                        val urlPoster = "https://image.tmdb.org/t/p/w500${movie.poster_path}"
+                        Glide.with(this@DetailsActivity)
+                            .load(urlPoster)
+                            .into(imgPoster)
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<TmdbSearchResponse>,
+                    t: Throwable
+                ) {
+                }
+            })
     }
 }
