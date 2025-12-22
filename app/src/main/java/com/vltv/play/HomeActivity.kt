@@ -8,42 +8,34 @@ import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import com.vltv.play.databinding.ActivityHomeBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import java.net.URL
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
 
-    // MESMA BASE DA SUA LISTA (ajuste se mudar usuário/senha)
-    private val BASE_URL = "http://tvblack.shop"
-    private val USER = "241394"
-    private val PASS = "486576"
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        DownloadHelper.registerReceiver(this)
+        // Receiver de downloads continua registrado em outro lugar (se precisar)
 
-        setupRecycler()
         setupClicks()
+        setupRecentesRecycler()
     }
 
     override fun onResume() {
         super.onResume()
-        carregarRecentesDoServidor()
-    }
-
-    private fun setupRecycler() {
-        binding.rvRecent.layoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        carregarRecentesFilmes()
     }
 
     private fun setupClicks() {
@@ -62,7 +54,7 @@ class HomeActivity : AppCompatActivity() {
             startActivity(Intent(this, SeriesActivity::class.java))
         }
 
-        // Campo de busca
+        // Campo de busca no cabeçalho
         binding.etSearch.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val texto = v.text.toString().trim()
@@ -94,6 +86,23 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupRecentesRecycler() {
+        binding.rvRecentes.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding.rvRecentes.adapter = RecentMovieAdapter(emptyList()) { item ->
+            abrirDetalheFilme(item)
+        }
+    }
+
+    private fun abrirDetalheFilme(item: RecentMovie) {
+        val intent = Intent(this, DetailsActivity::class.java)
+        intent.putExtra("stream_id", item.streamId)
+        intent.putExtra("title", item.title)
+        intent.putExtra("icon", item.icon)
+        intent.putExtra("extension", item.extension)
+        startActivity(intent)
+    }
+
     private fun showKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(binding.etSearch, InputMethodManager.SHOW_IMPLICIT)
@@ -116,59 +125,104 @@ class HomeActivity : AppCompatActivity() {
             .show()
     }
 
-    private fun carregarRecentesDoServidor() {
-        val urlFilmes =
-            "$BASE_URL/player_api.php?username=$USER&password=$PASS&action=get_vod_streams"
+    /**
+     * Busca apenas FILMES recentes (movie) no servidor Xtream
+     * e preenche o RecyclerView horizontal.
+     */
+    private fun carregarRecentesFilmes() {
+        val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
+        val user = prefs.getString("username", "") ?: ""
+        val pass = prefs.getString("password", "") ?: ""
+        val server = prefs.getString("server_url", "http://tvblack.shop") ?: "http://tvblack.shop"
+
+        // endpoint típico de VOD recentes; ajuste se o seu for diferente
+        val urlString =
+            "$server/player_api.php?username=$user&password=$pass&action=get_vod_streams"
 
         CoroutineScope(Dispatchers.IO).launch {
+            val lista = mutableListOf<RecentMovie>()
+
             try {
-                val jsonFilmesTxt = URL(urlFilmes).readText()
-                val arrFilmes = JSONArray(jsonFilmesTxt)
+                val jsonTxt = URL(urlString).readText()
+                val arr = JSONArray(jsonTxt)
 
-                val lista = mutableListOf<ConteudoRecente>()
+                // pega só os primeiros 20 filmes (pode ajustar)
+                for (i in 0 until minOf(arr.length(), 20)) {
+                    val obj = arr.getJSONObject(i)
 
-                for (i in 0 until arrFilmes.length()) {
-                    val item = arrFilmes.getJSONObject(i)
-                    val titulo = item.optString("title", item.optString("name", ""))
-                    val capa = item.optString("streamicon", "")
-                    val rating = item.optDouble("rating_5based", 0.0)
-                    val added = item.optLong("added", 0L)
-                    val id = item.optInt("stream_id", 0)
+                    // filtra apenas tipo "movie" se existir o campo
+                    val streamType = obj.optString("stream_type", "movie")
+                    if (streamType != "movie") continue
 
-                    if (titulo.isNotBlank() && capa.isNotBlank() && id != 0) {
-                        lista.add(
-                            ConteudoRecente(
-                                tipo = "movie",
-                                id = id,
-                                titulo = titulo,
-                                capa = capa,
-                                rating = rating,
-                                lastModified = added
-                            )
+                    val id = obj.getInt("stream_id")
+                    val name = obj.optString("name", "Sem título")
+                    val icon = obj.optString("stream_icon", "")
+                    val ext = obj.optString("container_extension", "mp4")
+
+                    lista.add(
+                        RecentMovie(
+                            streamId = id,
+                            title = name,
+                            icon = icon,
+                            extension = ext
                         )
-                    }
+                    )
                 }
+            } catch (_: Exception) {
+            }
 
-                val recentes = lista
-                    .sortedByDescending { it.lastModified }
-                    .take(20)
-
-                withContext(Dispatchers.Main) {
-                    binding.rvRecent.adapter =
-                        RecentesAdapter(recentes) { conteudo ->
-                            abrirDetalhes(conteudo)
-                        }
+            withContext(Dispatchers.Main) {
+                val adapter = RecentMovieAdapter(lista) { item ->
+                    abrirDetalheFilme(item)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+                binding.rvRecentes.adapter = adapter
             }
         }
     }
+}
 
-    private fun abrirDetalhes(item: ConteudoRecente) {
-        // Por enquanto só filmes
-        val intent = Intent(this, DetailsActivity::class.java)
-        intent.putExtra("stream_id", item.id)
-        startActivity(intent)
+/** Modelo simples para filmes recentes */
+data class RecentMovie(
+    val streamId: Int,
+    val title: String,
+    val icon: String,
+    val extension: String
+)
+
+/** Adapter do RecyclerView horizontal de “Adicionados Recentemente” */
+class RecentMovieAdapter(
+    private val items: List<RecentMovie>,
+    private val onClick: (RecentMovie) -> Unit
+) : androidx.recyclerview.widget.RecyclerView.Adapter<RecentMovieAdapter.VH>() {
+
+    inner class VH(val view: android.view.View) :
+        androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+
+        val imgPoster: android.widget.ImageView = view.findViewById(R.id.imgPosterRecent)
+        val tvTitle: android.widget.TextView = view.findViewById(R.id.tvTitleRecent)
     }
+
+    override fun onCreateViewHolder(
+        parent: android.view.ViewGroup,
+        viewType: Int
+    ): VH {
+        val v = android.view.LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_recent_movie, parent, false)
+        return VH(v)
+    }
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val item = items[position]
+        holder.tvTitle.text = item.title
+
+        Glide.with(holder.view.context)
+            .load(item.icon)
+            .placeholder(R.mipmap.ic_launcher)
+            .centerCrop()
+            .into(holder.imgPoster)
+
+        holder.view.setOnClickListener { onClick(item) }
+    }
+
+    override fun getItemCount(): Int = items.size
 }
