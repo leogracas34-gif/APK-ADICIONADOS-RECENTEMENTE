@@ -221,7 +221,7 @@ class DetailsActivity : AppCompatActivity() {
     private fun carregarDetalhesRetrofit(streamId: Int) {
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
         val username = prefs.getString("username", "") ?: ""
-        the password = prefs.getString("password", "") ?: ""
+        val password = prefs.getString("password", "") ?: ""
 
         XtreamApi.service.getVodInfo(username, password, vodId = streamId)
             .enqueue(object : Callback<VodInfoResponse> {
