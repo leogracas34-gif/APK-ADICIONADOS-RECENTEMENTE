@@ -40,8 +40,7 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         carregarRecentMovies()
-        carregarRecentSeries()
-    }
+            }
 
     private fun setupClicks() {
         binding.cardLiveTv.setOnClickListener {
