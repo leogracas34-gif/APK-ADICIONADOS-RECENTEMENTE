@@ -41,7 +41,7 @@ class DetailsActivity : AppCompatActivity() {
     private enum class DownloadState { BAIXAR, BAIXANDO, BAIXADO }
     private var downloadState: DownloadState = DownloadState.BAIXAR
 
-    // Para recentes (HomeActivity)
+    // Para chamada direta Xtream (recentes)
     private val BASE_URL = "http://tvblack.shop"
     private val USER = "241394"
     private val PASS = "486576"
@@ -76,7 +76,7 @@ class DetailsActivity : AppCompatActivity() {
 
         tvTitle.text = movieTitle
 
-        // PRIMEIRO: carrega dados básicos do intent (para recentes funcionar)
+        // Poster vindo da Home/VOD
         if (icon != null) {
             Glide.with(this)
                 .load(icon)
@@ -162,7 +162,7 @@ class DetailsActivity : AppCompatActivity() {
             }
         }
 
-        // ✅ AGORA carrega detalhes Xtream + TMDB (prioridade: Xtream primeiro)
+        // Detalhes: primeiro Xtream direto, depois TMDB para complementar
         carregarDetalhesXtream(streamId)
         carregarDetalhesTmdb(movieTitle)
     }
@@ -172,27 +172,52 @@ class DetailsActivity : AppCompatActivity() {
         restaurarEstadoDownload()
     }
 
+    // ---------- DETALHES (XTREAM + RETROFIT) ----------
+
     private fun carregarDetalhesXtream(streamId: Int) {
-        // PRIMEIRO tenta Xtream Codes direto (mais rápido e funciona com recentes)
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val url = "$BASE_URL/player_api.php?username=$USER&password=$PASS&action=get_vod_info&stream_id=$streamId"
                 val jsonText = URL(url).readText()
                 val jsonObj = JSONObject(jsonText)
-                val vodInfo = jsonObj.optJSONObject("user_info")?.optJSONObject("vod_info") ?: jsonObj
+                val vodInfo = jsonObj.optJSONObject("movie_data") ?: jsonObj
 
                 withContext(Dispatchers.Main) {
                     preencherDetalhesXtream(vodInfo)
                 }
             } catch (e: Exception) {
-                // Se falhar, usa Retrofit
+                // Se der erro, usa seu Retrofit padrão
                 carregarDetalhesRetrofit(streamId)
             }
         }
     }
 
+    private fun preencherDetalhesXtream(info: JSONObject) {
+        val titulo = info.optString("name", movieTitle)
+        val capa = info.optString("stream_icon", "")
+        val sinopse = info.optString("plot", "Sinopse indisponível.")
+        val genero = info.optString("genre", "")
+        val rating = info.optDouble("rating", 0.0)
+        val diretor = info.optString("director", "")
+        val elenco = info.optString("cast", "")
+
+        movieTitle = titulo
+
+        tvPlot.text = sinopse
+        tvGenre.text = if (genero.isNotBlank()) "Gênero: $genero" else "Gênero: N/A"
+        tvCast.text = if (elenco.isNotBlank()) "Elenco: $elenco" else "Elenco: N/A"
+        tvRating.text = if (rating > 0) "Nota: ${String.format("%.1f", rating)}" else "Nota: N/A"
+        tvDirector.text = if (diretor.isNotBlank()) "Diretor: $diretor" else "Diretor: N/A"
+
+        if (capa.isNotBlank()) {
+            Glide.with(this)
+                .load(capa)
+                .placeholder(R.mipmap.ic_launcher)
+                .into(imgPoster)
+        }
+    }
+
     private fun carregarDetalhesRetrofit(streamId: Int) {
-        // Seu código original como fallback
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
         val username = prefs.getString("username", "") ?: ""
         val password = prefs.getString("password", "") ?: ""
@@ -217,29 +242,6 @@ class DetailsActivity : AppCompatActivity() {
             })
     }
 
-    private fun preencherDetalhesXtream(info: JSONObject) {
-        val titulo = info.optString("title", movieTitle)
-        val capa = info.optString("streamicon", "")
-        val sinopse = info.optString("plot", "Sinopse indisponível.")
-        val genero = info.optString("category_name", "")
-        val rating = info.optDouble("rating_5based", 0.0)
-        val diretor = info.optString("director", "")
-        val elenco = info.optString("cast", "")
-
-        tvPlot.text = sinopse
-        tvGenre.text = if (genero.isNotBlank()) "Gênero: $genero" else "Gênero: N/A"
-        tvCast.text = if (elenco.isNotBlank()) "Elenco: $elenco" else "Elenco: N/A"
-        tvRating.text = "Nota: ${String.format("%.1f", rating)}/5"
-        tvDirector.text = if (diretor.isNotBlank()) "Diretor: $diretor" else "Diretor: N/A"
-
-        if (capa.isNotBlank()) {
-            Glide.with(this)
-                .load(capa)
-                .placeholder(R.mipmap.ic_launcher)
-                .into(imgPoster)
-        }
-    }
-
     private fun preencherDetalhesRetrofit(info: VodInfo) {
         tvPlot.text = info.plot ?: "Sinopse indisponível."
         tvGenre.text = "Gênero: ${info.genre ?: "N/A"}"
@@ -253,6 +255,48 @@ class DetailsActivity : AppCompatActivity() {
                 .into(imgPoster)
         }
     }
+
+    // ---------- TMDB (complemento) ----------
+
+    private fun carregarDetalhesTmdb(titulo: String) {
+        val apiKey = TmdbConfig.API_KEY
+        if (apiKey.isBlank()) return
+
+        TmdbApi.service.searchMovie(apiKey, titulo)
+            .enqueue(object : Callback<TmdbSearchResponse> {
+                override fun onResponse(
+                    call: Call<TmdbSearchResponse>,
+                    response: Response<TmdbSearchResponse>
+                ) {
+                    val movie = response.body()?.results?.firstOrNull() ?: return
+
+                    if (tvPlot.text.isNullOrBlank() || tvPlot.text == "Sinopse indisponível.") {
+                        tvPlot.text = movie.overview ?: "Sinopse indisponível."
+                    }
+
+                    if (tvRating.text.isNullOrBlank() || tvRating.text.contains("N/A")) {
+                        val nota = movie.vote_average ?: 0f
+                        tvRating.text = "Nota: ${String.format("%.1f", nota)}"
+                    }
+
+                    if (movie.poster_path != null) {
+                        val urlPoster = "https://image.tmdb.org/t/p/w500${movie.poster_path}"
+                        Glide.with(this@DetailsActivity)
+                            .load(urlPoster)
+                            .into(imgPoster)
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<TmdbSearchResponse>,
+                    t: Throwable
+                ) {
+                    // silencioso
+                }
+            })
+    }
+
+    // ---------- PLAYER / DOWNLOAD / FAVORITOS ----------
 
     private fun montarUrlFilme(): String {
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
@@ -353,47 +397,10 @@ class DetailsActivity : AppCompatActivity() {
         btnFavorite.setImageResource(res)
     }
 
-    private fun carregarDetalhesTmdb(titulo: String) {
-        val apiKey = TmdbConfig.API_KEY
-        if (apiKey.isBlank()) return
-
-        TmdbApi.service.searchMovie(apiKey, titulo)
-            .enqueue(object : Callback<TmdbSearchResponse> {
-                override fun onResponse(
-                    call: Call<TmdbSearchResponse>,
-                    response: Response<TmdbSearchResponse>
-                ) {
-                    val movie = response.body()?.results?.firstOrNull() ?: return
-
-                    // Só sobrescreve se Xtream não preencheu
-                    if (tvPlot.text.isNullOrBlank() || tvPlot.text == "Sinopse indisponível.") {
-                        tvPlot.text = movie.overview ?: "Sinopse indisponível."
-                    }
-
-                    if (tvRating.text.isNullOrBlank() || tvRating.text.contains("N/A")) {
-                        val nota = movie.vote_average ?: 0f
-                        tvRating.text = "Nota: ${String.format("%.1f", nota)}"
-                    }
-
-                    if (movie.poster_path != null) {
-                        val urlPoster = "https://image.tmdb.org/t/p/w500${movie.poster_path}"
-                        Glide.with(this@DetailsActivity)
-                            .load(urlPoster)
-                            .into(imgPoster)
-                    }
-                }
-
-                override fun onFailure(
-                    call: Call<TmdbSearchResponse>,
-                    t: Throwable
-                ) {
-                    // Silencioso
-                }
-            })
-    }
+    // ---------- DETECÇÃO TV/CELULAR ----------
 
     private fun isTelevisionDevice(): Boolean {
-        // Sua função original (se existir no seu código)
+        // Se não precisar tratar TV diferente, pode deixar sempre false
         return false
     }
 }
