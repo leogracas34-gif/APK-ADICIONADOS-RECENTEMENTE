@@ -251,7 +251,7 @@ class HomeActivity : AppCompatActivity() {
         tipo: String // "movie" ou "tv"
     ): TmdbInfo {
         val prefs = context.getSharedPreferences("tmdb_cache", Context.MODE_PRIVATE)
-        val cacheKey = "tmdb_$tipo_$streamId"
+        val cacheKey = "tmdb_${tipo}_${streamId}"
 
         // Tenta cache primeiro
         val cached = prefs.getString(cacheKey, null)
