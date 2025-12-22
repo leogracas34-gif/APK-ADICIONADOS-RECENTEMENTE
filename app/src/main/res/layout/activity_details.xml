@@ -1,176 +1,165 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#101010"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp">
+        android:orientation="vertical">
 
-        <!-- Topo: Capa + estrela + detalhes -->
-        <LinearLayout
+        <!-- POSTER PRINCIPAL -->
+        <ImageView
+            android:id="@+id/imgPoster"
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_marginBottom="16dp"
+            android:scaleType="centerCrop"
+            android:background="#333333"
+            app:cardCornerRadius="12dp" />
+
+        <!-- TÍTULO -->
+        <TextView
+            android:id="@+id/tvTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:text="Título do Filme"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
 
-            <!-- Capa + estrela em cima -->
-            <FrameLayout
-                android:layout_width="140dp"
-                android:layout_height="210dp">
+        <!-- BOTÃO PLAY -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/btnPlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="6dp"
+            android:clickable="true"
+            android:focusable="true">
 
-                <ImageView
-                    android:id="@+id/imgPoster"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:src="@mipmap/ic_launcher"
-                    android:background="#333333" />
-
-                <ImageButton
-                    android:id="@+id/btnFavorite"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_gravity="bottom|end"
-                    android:layout_margin="6dp"
-                    android:background="@android:color/transparent"
-                    android:src="@drawable/ic_star_border"
-                    android:tint="#FFFFFF" />
-            </FrameLayout>
-
-            <!-- Detalhes à direita -->
             <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_gradient_red">
 
                 <TextView
-                    android:id="@+id/tvTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Carregando..."
-                    android:textColor="#FFFFFF"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvRating"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="#FFC107"
-                    android:paddingHorizontal="6dp"
-                    android:paddingVertical="2dp"
-                    android:text="Nota: --"
-                    android:textColor="#000000"
+                    android:text="▶ PLAY"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textSize="12sp" />
+                    android:layout_marginEnd="8dp" />
 
                 <TextView
-                    android:id="@+id/tvGenre"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="Gênero: ..."
-                    android:textColor="#BBBBBB"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/tvDirector"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Diretor: ..."
-                    android:textColor="#BBBBBB"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/tvCast"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Elenco: ..."
-                    android:textColor="#BBBBBB"
-                    android:textSize="13sp"
-                    android:maxLines="3"
-                    android:ellipsize="end" />
+                    android:text="Assista agora"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp" />
             </LinearLayout>
-        </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-        <!-- Botão ASSISTIR (download oculto) -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="24dp">
-
-            <!-- ASSISTIR -->
-            <Button
-                android:id="@+id/btnPlay"
-                android:layout_width="match_parent"
-                android:layout_height="50dp"
-                android:background="@drawable/bg_home_red"
-                android:text="ASSISTIR"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
-
-            <!-- Área de download ocultada -->
-            <LinearLayout
-                android:id="@+id/btnDownloadArea"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:visibility="gone"
-                android:clickable="false"
-                android:focusable="false">
-
-                <ImageView
-                    android:id="@+id/imgDownloadState"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/tvDownloadState"
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Continuar assistindo -->
-        <Button
-            android:id="@+id/btnResume"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="8dp"
-            android:backgroundTint="#555555"
-            android:text="CONTINUAR ASSISTINDO"
-            android:textColor="#FFFFFF"
-            android:visibility="gone" />
-
-        <!-- Sinopse -->
+        <!-- INFORMAÇÕES -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="SINOPSE"
-            android:textColor="#FFFFFF"
+            android:text="DETALHES"
+            android:textColor="#E50914"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
 
         <TextView
-            android:id="@+id/tvPlot"
+            android:id="@+id/tvRating"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:lineSpacingExtra="4dp"
-            android:text="..."
-            android:textColor="#DDDDDD"
-            android:textSize="14sp" />
+            android:text="Nota: 4.2/5"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvGenero"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Gênero: Ação"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvDuracao"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Duração: 120 min"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvAno"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ano: 2023"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvDiretor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Diretor: ..."
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvElenco"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Elenco: ..."
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="12dp" />
+
+        <!-- SINOPSE -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="SINOPSE"
+            android:textColor="#E50914"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvSinopse"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Sinopse do filme aqui..."
+            android:textColor="#CCCCCC"
+            android:textSize="14sp"
+            android:lineSpacing="2dp"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/tvContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Formato: MP4"
+            android:textColor="#AAAAAA"
+            android:textSize="12sp" />
+
     </LinearLayout>
 </ScrollView>
