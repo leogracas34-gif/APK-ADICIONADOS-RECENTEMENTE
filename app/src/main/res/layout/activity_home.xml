@@ -63,9 +63,9 @@
                 android:focusable="true" />
         </LinearLayout>
 
-        <!-- TÍTULO + LISTA ADICIONADOS RECENTEMENTE (só filmes) -->
+        <!-- TÍTULO ADICIONADOS RECENTEMENTE -->
         <TextView
-            android:id="@+id/tvRecentTitle"
+            android:id="@+id/tvRecentesTitulo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Adicionados recentemente"
@@ -74,13 +74,17 @@
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
+        <!-- LISTA HORIZONTAL DE FILMES RECENTES -->
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvRecent"
+            android:id="@+id/rvRecentes"
             android:layout_width="match_parent"
-            android:layout_height="160dp"
-            android:layout_marginBottom="16dp"
-            android:overScrollMode="never"
-            android:scrollbars="none" />
+            android:layout_height="170dp"
+            android:overScrollMode="never" />
+
+        <!-- ESPAÇO PEQUENO -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="12dp" />
 
         <!-- MENU DE BOTÕES -->
         <LinearLayout
