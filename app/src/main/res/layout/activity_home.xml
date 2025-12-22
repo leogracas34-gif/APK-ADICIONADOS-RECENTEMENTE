@@ -80,25 +80,7 @@
             android:layout_height="170dp"
             android:overScrollMode="never" />
 
-        <!-- SÉRIES ADICIONADAS RECENTEMENTE -->
-        <TextView
-            android:id="@+id/tvRecentSeriesTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Séries adicionadas recentemente"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="8dp" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvRecentSeries"
-            android:layout_width="match_parent"
-            android:layout_height="170dp"
-            android:overScrollMode="never" />
-
-        <!-- ESPAÇO PEQUENO -->
+                <!-- ESPAÇO PEQUENO -->
         <View
             android:layout_width="match_parent"
             android:layout_height="12dp" />
