@@ -46,7 +46,6 @@ class DetailsActivity : AppCompatActivity() {
     private enum class DownloadState { BAIXAR, BAIXANDO, BAIXADO }
     private var downloadState: DownloadState = DownloadState.BAIXAR
 
-    // Para chamada direta Xtream (recentes)
     private val BASE_URL = "http://tvblack.shop"
     private val USER = "241394"
     private val PASS = "486576"
@@ -166,7 +165,6 @@ class DetailsActivity : AppCompatActivity() {
             }
         }
 
-        // Detalhes: primeiro Xtream direto, depois TMDB
         carregarDetalhesXtream(streamId)
         carregarDetalhesTmdb(movieTitle)
     }
@@ -175,8 +173,6 @@ class DetailsActivity : AppCompatActivity() {
         super.onResume()
         restaurarEstadoDownload()
     }
-
-    // ---------- DETALHES (XTREAM + RETROFIT) ----------
 
     private fun carregarDetalhesXtream(streamId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -225,7 +221,7 @@ class DetailsActivity : AppCompatActivity() {
     private fun carregarDetalhesRetrofit(streamId: Int) {
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
         val username = prefs.getString("username", "") ?: ""
-        val password = prefs.getString("password", "") ?: ""
+        the password = prefs.getString("password", "") ?: ""
 
         XtreamApi.service.getVodInfo(username, password, vodId = streamId)
             .enqueue(object : Callback<VodInfoResponse> {
@@ -260,8 +256,6 @@ class DetailsActivity : AppCompatActivity() {
                 .into(imgPoster)
         }
     }
-
-    // ---------- TMDB (complemento) ----------
 
     private fun carregarDetalhesTmdb(titulo: String) {
         val apiKey = TmdbConfig.API_KEY
@@ -300,8 +294,6 @@ class DetailsActivity : AppCompatActivity() {
                 }
             })
     }
-
-    // ---------- PLAYER / DOWNLOAD / FAVORITOS ----------
 
     private fun montarUrlFilme(): String {
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
