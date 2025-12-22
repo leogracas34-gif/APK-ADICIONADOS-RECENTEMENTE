@@ -14,14 +14,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
-import org.json.JSONObject
 import java.net.URL
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
 
-    // MESMA BASE DA SUA LISTA
+    // MESMA BASE DA SUA LISTA (ajuste se mudar usuário/senha)
     private val BASE_URL = "http://tvblack.shop"
     private val USER = "241394"
     private val PASS = "486576"
@@ -120,18 +119,14 @@ class HomeActivity : AppCompatActivity() {
     private fun carregarRecentesDoServidor() {
         val urlFilmes =
             "$BASE_URL/player_api.php?username=$USER&password=$PASS&action=get_vod_streams"
-        val urlSeries =
-            "$BASE_URL/player_api.php?username=$USER&password=$PASS&action=get_series"
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val jsonFilmesTxt = URL(urlFilmes).readText()
-                val jsonSeriesTxt = URL(urlSeries).readText()
+                val arrFilmes = JSONArray(jsonFilmesTxt)
 
                 val lista = mutableListOf<ConteudoRecente>()
 
-                // FILMES
-                val arrFilmes = JSONArray(jsonFilmesTxt)
                 for (i in 0 until arrFilmes.length()) {
                     val item = arrFilmes.getJSONObject(i)
                     val titulo = item.optString("title", item.optString("name", ""))
@@ -154,31 +149,6 @@ class HomeActivity : AppCompatActivity() {
                     }
                 }
 
-                // SÉRIES
-                val arrSeries = JSONArray(jsonSeriesTxt)
-                for (i in 0 until arrSeries.length()) {
-                    val item = arrSeries.getJSONObject(i)
-                    val titulo = item.optString("title", item.optString("name", ""))
-                    val capa = item.optString("cover", "")
-                    val rating = item.optDouble("rating_5based", 0.0)
-                    val modified = item.optLong("last_modified", 0L)
-                    val id = item.optInt("series_id", 0)
-
-                    if (titulo.isNotBlank() && capa.isNotBlank() && id != 0) {
-                        lista.add(
-                            ConteudoRecente(
-                                tipo = "series",
-                                id = id,
-                                titulo = titulo,
-                                capa = capa,
-                                rating = rating,
-                                lastModified = modified
-                            )
-                        )
-                    }
-                }
-
-                // Ordenar por mais recente
                 val recentes = lista
                     .sortedByDescending { it.lastModified }
                     .take(20)
@@ -196,14 +166,9 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun abrirDetalhes(item: ConteudoRecente) {
-        if (item.tipo == "movie") {
-            val intent = Intent(this, DetailsActivity::class.java)
-            intent.putExtra("stream_id", item.id)
-            startActivity(intent)
-        } else {
-            val intent = Intent(this, SeriesDetailsActivity::class.java)
-            intent.putExtra("series_id", item.id)
-            startActivity(intent)
-        }
+        // Por enquanto só filmes
+        val intent = Intent(this, DetailsActivity::class.java)
+        intent.putExtra("stream_id", item.id)
+        startActivity(intent)
     }
 }
