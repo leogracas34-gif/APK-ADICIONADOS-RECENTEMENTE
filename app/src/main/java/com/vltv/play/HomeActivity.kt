@@ -15,46 +15,41 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
-import org.json.JSONObject
 import java.net.URL
 
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
+    private val MIN_YEAR = 2023 // só lançamentos a partir desse ano
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Receiver de downloads continua registrado em outro lugar (se precisar)
-
         setupClicks()
-        setupRecentesRecycler()
+        setupRecyclers()
     }
 
     override fun onResume() {
         super.onResume()
-        carregarRecentesFilmes()
+        carregarRecentMovies()
+        carregarRecentSeries()
     }
 
     private fun setupClicks() {
-        // TV AO VIVO
         binding.cardLiveTv.setOnClickListener {
             startActivity(Intent(this, LiveTvActivity::class.java))
         }
 
-        // FILMES (VOD)
         binding.cardMovies.setOnClickListener {
             startActivity(Intent(this, VodActivity::class.java))
         }
 
-        // SÉRIES
         binding.cardSeries.setOnClickListener {
             startActivity(Intent(this, SeriesActivity::class.java))
         }
 
-        // Campo de busca no cabeçalho
         binding.etSearch.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 val texto = v.text.toString().trim()
@@ -69,7 +64,6 @@ class HomeActivity : AppCompatActivity() {
             }
         }
 
-        // Botão de configurações / menu
         binding.btnSettings.setOnClickListener {
             val itens = arrayOf("Meus downloads", "Configurações", "Sair")
 
@@ -86,15 +80,21 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupRecentesRecycler() {
-        binding.rvRecentes.layoutManager =
+    private fun setupRecyclers() {
+        binding.rvRecentMovies.layoutManager =
             LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        binding.rvRecentes.adapter = RecentMovieAdapter(emptyList()) { item ->
-            abrirDetalheFilme(item)
+        binding.rvRecentMovies.adapter = RecentItemAdapter(emptyList()) { item ->
+            abrirDetalhe(item)
+        }
+
+        binding.rvRecentSeries.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding.rvRecentSeries.adapter = RecentItemAdapter(emptyList()) { item ->
+            abrirDetalhe(item)
         }
     }
 
-    private fun abrirDetalheFilme(item: RecentMovie) {
+    private fun abrirDetalhe(item: RecentItem) {
         val intent = Intent(this, DetailsActivity::class.java)
         intent.putExtra("stream_id", item.streamId)
         intent.putExtra("title", item.title)
@@ -125,42 +125,70 @@ class HomeActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun carregarRecentMovies() {
+        carregarRecentesGenerico(
+            actionParam = "get_vod_streams",
+            expectedType = "movie"
+        ) { lista ->
+            binding.rvRecentMovies.adapter = RecentItemAdapter(lista) { item ->
+                abrirDetalhe(item)
+            }
+        }
+    }
+
+    private fun carregarRecentSeries() {
+        carregarRecentesGenerico(
+            actionParam = "get_series",
+            expectedType = "series"
+        ) { lista ->
+            binding.rvRecentSeries.adapter = RecentItemAdapter(lista) { item ->
+                abrirDetalhe(item)
+            }
+        }
+    }
+
     /**
-     * Busca apenas FILMES recentes (movie) no servidor Xtream
-     * e preenche o RecyclerView horizontal.
+     * Função genérica que lê do Xtream e filtra por tipo + ano.
      */
-    private fun carregarRecentesFilmes() {
+    private fun carregarRecentesGenerico(
+        actionParam: String,
+        expectedType: String,
+        onResult: (List<RecentItem>) -> Unit
+    ) {
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
         val user = prefs.getString("username", "") ?: ""
         val pass = prefs.getString("password", "") ?: ""
         val server = prefs.getString("server_url", "http://tvblack.shop") ?: "http://tvblack.shop"
 
-        // endpoint típico de VOD recentes; ajuste se o seu for diferente
         val urlString =
-            "$server/player_api.php?username=$user&password=$pass&action=get_vod_streams"
+            "$server/player_api.php?username=$user&password=$pass&action=$actionParam"
 
         CoroutineScope(Dispatchers.IO).launch {
-            val lista = mutableListOf<RecentMovie>()
+            val lista = mutableListOf<RecentItem>()
 
             try {
                 val jsonTxt = URL(urlString).readText()
                 val arr = JSONArray(jsonTxt)
 
-                // pega só os primeiros 20 filmes (pode ajustar)
-                for (i in 0 until minOf(arr.length(), 20)) {
+                for (i in 0 until arr.length()) {
+                    if (lista.size >= 20) break
+
                     val obj = arr.getJSONObject(i)
 
-                    // filtra apenas tipo "movie" se existir o campo
-                    val streamType = obj.optString("stream_type", "movie")
-                    if (streamType != "movie") continue
+                    val streamType = obj.optString("stream_type", expectedType)
+                    if (streamType != expectedType) continue
 
-                    val id = obj.getInt("stream_id")
+                    val yearStr = obj.optString("year", "")
+                    val year = yearStr.toIntOrNull() ?: 0
+                    if (year < MIN_YEAR) continue
+
+                    val id = obj.optInt("stream_id", 0)
                     val name = obj.optString("name", "Sem título")
                     val icon = obj.optString("stream_icon", "")
                     val ext = obj.optString("container_extension", "mp4")
 
                     lista.add(
-                        RecentMovie(
+                        RecentItem(
                             streamId = id,
                             title = name,
                             icon = icon,
@@ -172,28 +200,25 @@ class HomeActivity : AppCompatActivity() {
             }
 
             withContext(Dispatchers.Main) {
-                val adapter = RecentMovieAdapter(lista) { item ->
-                    abrirDetalheFilme(item)
-                }
-                binding.rvRecentes.adapter = adapter
+                onResult(lista)
             }
         }
     }
 }
 
-/** Modelo simples para filmes recentes */
-data class RecentMovie(
+/** Modelo simples para recentes (filmes ou séries) */
+data class RecentItem(
     val streamId: Int,
     val title: String,
     val icon: String,
     val extension: String
 )
 
-/** Adapter do RecyclerView horizontal de “Adicionados Recentemente” */
-class RecentMovieAdapter(
-    private val items: List<RecentMovie>,
-    private val onClick: (RecentMovie) -> Unit
-) : androidx.recyclerview.widget.RecyclerView.Adapter<RecentMovieAdapter.VH>() {
+/** Adapter usado pelas duas listas horizontais */
+class RecentItemAdapter(
+    private val items: List<RecentItem>,
+    private val onClick: (RecentItem) -> Unit
+) : androidx.recyclerview.widget.RecyclerView.Adapter<RecentItemAdapter.VH>() {
 
     inner class VH(val view: android.view.View) :
         androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
