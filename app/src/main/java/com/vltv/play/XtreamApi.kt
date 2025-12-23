@@ -1,5 +1,14 @@
 package com.vltv.play
 
+// ADICIONE NO INÍCIO do XtreamApi.kt (depois do package)
+lateinit var context: android.content.Context
+
+// E na função setBaseUrl(), adicione:
+fun setBaseUrl(newUrl: String, ctx: android.content.Context) {
+    context = ctx
+    baseUrl = if (newUrl.endsWith("/")) newUrl else "$newUrl/"
+    retrofit = null
+}
 import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
