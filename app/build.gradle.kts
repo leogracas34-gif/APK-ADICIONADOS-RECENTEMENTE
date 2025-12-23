@@ -48,5 +48,11 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.2.0")
     implementation("androidx.media3:media3-ui:1.2.0")
     implementation("androidx.media3:media3-exoplayer-hls:1.2.0") 
-    implementation("androidx.media3:media3-common:1.2.0")
+    implementation("androidx.media3:media3-common:1.2.0")dependencies {
+    // ... suas dependências atuais ...
+    
+    // ADICIONE ESTAS 3:
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
 }
