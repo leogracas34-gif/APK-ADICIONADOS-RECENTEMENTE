@@ -26,7 +26,7 @@ private const val TMDB_BASE_URL = "https://api.themoviedb.org/3"
 class HomeActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHomeBinding
-    private val MIN_YEAR = 2025 // ano mínimo para exibir em "recentes"
+    private val MIN_YEAR = 2024 // ano mínimo para exibir em "recentes"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
