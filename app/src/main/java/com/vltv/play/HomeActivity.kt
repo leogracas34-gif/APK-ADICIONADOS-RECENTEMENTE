@@ -12,6 +12,7 @@ import com.bumptech.glide.Glide
 import com.vltv.play.databinding.ActivityHomeBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -28,6 +29,12 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomeBinding
     private val MIN_YEAR = 2024 // ano mínimo para exibir em "recentes"
 
+    // Adapter reaproveitado (não recriar toda hora)
+    private lateinit var recentAdapter: RecentItemAdapter
+
+    // Job para cancelar carregamentos antigos se o usuário voltar pra Home
+    private var recentJob: Job? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
@@ -35,11 +42,12 @@ class HomeActivity : AppCompatActivity() {
 
         setupClicks()
         setupRecyclers()
+        carregarRecentMoviesCachePrimeiro()
     }
 
     override fun onResume() {
         super.onResume()
-        // Só filmes no celular
+        // Atualiza os recentes em background, sem travar a tela
         carregarRecentMovies()
     }
 
@@ -87,13 +95,13 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclers() {
-        binding.rvRecentMovies.layoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        binding.rvRecentMovies.adapter = RecentItemAdapter(emptyList()) { item ->
+        recentAdapter = RecentItemAdapter(emptyList()) { item ->
             abrirDetalhe(item)
         }
 
-        // ATENÇÃO: nenhuma referência a rvRecentSeries aqui
+        binding.rvRecentMovies.layoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        binding.rvRecentMovies.adapter = recentAdapter
     }
 
     private fun abrirDetalhe(item: RecentItem) {
@@ -127,29 +135,95 @@ class HomeActivity : AppCompatActivity() {
             .show()
     }
 
+    // ============================================================
+    // OTIMIZAÇÃO: 1) Mostra cache imediato, 2) Atualiza em background
+    // ============================================================
+
+    private fun carregarRecentMoviesCachePrimeiro() {
+        // Carrega do cache local para a tela abrir rápido
+        val cache = lerCacheRecentes()
+        if (cache.isNotEmpty()) {
+            recentAdapter.updateItems(cache)
+        }
+    }
+
     private fun carregarRecentMovies() {
-        carregarRecentesGenerico(
-            actionParam = "get_vod_streams",
-            expectedType = "movie",
-            tmdbType = "movie"
-        ) { lista ->
-            binding.rvRecentMovies.adapter = RecentItemAdapter(lista) { item ->
-                abrirDetalhe(item)
+        // cancela uma requisição antiga se ainda estiver rodando
+        recentJob?.cancel()
+
+        recentJob = CoroutineScope(Dispatchers.IO).launch {
+            val lista = carregarRecentesGenerico(
+                actionParam = "get_vod_streams",
+                expectedType = "movie",
+                tmdbType = "movie"
+            )
+
+            // salva em cache para próxima abertura ser instantânea
+            salvarCacheRecentes(lista)
+
+            withContext(Dispatchers.Main) {
+                recentAdapter.updateItems(lista)
             }
         }
     }
 
-    // >>> NÃO TEM carregarRecentSeries aqui na versão de celular <<<
+    // ------------------------------------------------------------
+    // Funções de cache em SharedPreferences
+    // ------------------------------------------------------------
+    private fun salvarCacheRecentes(lista: List<RecentItem>) {
+        try {
+            val prefs = getSharedPreferences("recentes_cache", Context.MODE_PRIVATE)
+            val arr = JSONArray()
+            lista.forEach { item ->
+                val obj = JSONObject()
+                obj.put("stream_id", item.streamId)
+                obj.put("title", item.title)
+                obj.put("icon", item.icon)
+                obj.put("extension", item.extension)
+                obj.put("year", item.year)
+                arr.put(obj)
+            }
+            prefs.edit().putString("recent_movies_json", arr.toString()).apply()
+        } catch (_: Exception) {
+        }
+    }
 
-    /**
-     * Função genérica que lê do Xtream, enriquece com TMDB, filtra por ano e ordena.
-     */
-    private fun carregarRecentesGenerico(
+    private fun lerCacheRecentes(): List<RecentItem> {
+        val prefs = getSharedPreferences("recentes_cache", Context.MODE_PRIVATE)
+        val json = prefs.getString("recent_movies_json", null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(json)
+            val lista = mutableListOf<RecentItem>()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                lista.add(
+                    RecentItem(
+                        streamId = obj.optInt("stream_id", 0),
+                        title = obj.optString("title", ""),
+                        icon = obj.optString("icon", ""),
+                        extension = obj.optString("extension", ""),
+                        year = obj.optInt("year", 0)
+                    )
+                )
+            }
+            // garante ordenação (ano mais novo primeiro)
+            lista.sortedWith(
+                compareByDescending<RecentItem> { it.year }
+                    .thenByDescending { it.streamId }
+            )
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // ============================================================
+    // FUNÇÃO GENÉRICA (mesma ideia da sua, mas retornando lista)
+    // ============================================================
+    private suspend fun carregarRecentesGenerico(
         actionParam: String,
         expectedType: String,
-        tmdbType: String,
-        onResult: (List<RecentItem>) -> Unit
-    ) {
+        tmdbType: String
+    ): List<RecentItem> {
         val prefs = getSharedPreferences("vltv_prefs", Context.MODE_PRIVATE)
         val user = prefs.getString("username", "") ?: ""
         val pass = prefs.getString("password", "") ?: ""
@@ -158,63 +232,57 @@ class HomeActivity : AppCompatActivity() {
         val urlString =
             "$server/player_api.php?username=$user&password=$pass&action=$actionParam"
 
-        CoroutineScope(Dispatchers.IO).launch {
-            val lista = mutableListOf<RecentItem>()
+        val lista = mutableListOf<RecentItem>()
 
-            try {
-                val jsonTxt = URL(urlString).readText()
-                val arr = JSONArray(jsonTxt)
+        return try {
+            val jsonTxt = withContext(Dispatchers.IO) { URL(urlString).readText() }
+            val arr = JSONArray(jsonTxt)
 
-                for (i in 0 until arr.length()) {
-                    if (lista.size >= 20) break
+            for (i in 0 until arr.length()) {
+                if (lista.size >= 20) break
 
-                    val obj = arr.getJSONObject(i)
+                val obj = arr.getJSONObject(i)
 
-                    val streamType = obj.optString("stream_type", expectedType)
-                    if (streamType != expectedType && actionParam == "get_vod_streams") continue
+                val streamType = obj.optString("stream_type", expectedType)
+                if (streamType != expectedType && actionParam == "get_vod_streams") continue
 
-                    val id = obj.optInt("stream_id", 0)
-                    val name = obj.optString("name", "Sem título")
-                    val icon = obj.optString("stream_icon", "")
-                    val ext = obj.optString("container_extension", "mp4")
-                    val yearStr = obj.optString("year", "")
-                    val yearFromServer = yearStr.toIntOrNull() ?: 0
+                val id = obj.optInt("stream_id", 0)
+                val name = obj.optString("name", "Sem título")
+                val icon = obj.optString("stream_icon", "")
+                val ext = obj.optString("container_extension", "mp4")
+                val yearStr = obj.optString("year", "")
+                val yearFromServer = yearStr.toIntOrNull() ?: 0
 
-                    // Buscar ano e poster no TMDB (com cache)
-                    val tmdbInfo = buscarInfoTmdbComCache(
-                        context = this@HomeActivity,
+                // Buscar ano e poster no TMDB (com cache)
+                val tmdbInfo = buscarInfoTmdbComCache(
+                    context = this@HomeActivity,
+                    streamId = id,
+                    titulo = name,
+                    tipo = tmdbType
+                )
+
+                val finalYear = if (tmdbInfo.year > 0) tmdbInfo.year else yearFromServer
+                if (finalYear < MIN_YEAR) continue
+
+                val finalIcon = if (tmdbInfo.posterUrl.isNotBlank()) tmdbInfo.posterUrl else icon
+
+                lista.add(
+                    RecentItem(
                         streamId = id,
-                        titulo = name,
-                        tipo = tmdbType
+                        title = name,
+                        icon = finalIcon,
+                        extension = ext,
+                        year = finalYear
                     )
-
-                    val finalYear = if (tmdbInfo.year > 0) tmdbInfo.year else yearFromServer
-                    if (finalYear < MIN_YEAR) continue
-
-                    val finalIcon = if (tmdbInfo.posterUrl.isNotBlank()) tmdbInfo.posterUrl else icon
-
-                    lista.add(
-                        RecentItem(
-                            streamId = id,
-                            title = name,
-                            icon = finalIcon,
-                            extension = ext,
-                            year = finalYear
-                        )
-                    )
-                }
-            } catch (_: Exception) {
+                )
             }
 
-            withContext(Dispatchers.Main) {
-                // Ordenar do ano mais novo para o mais antigo; se empatar, usa streamId
-                val ordenada = lista
-                    .sortedWith(
-                        compareByDescending<RecentItem> { it.year }
-                            .thenByDescending { it.streamId }
-                    )
-                onResult(ordenada)
-            }
+            lista.sortedWith(
+                compareByDescending<RecentItem> { it.year }
+                    .thenByDescending { it.streamId }
+            )
+        } catch (_: Exception) {
+            emptyList()
         }
     }
 
@@ -301,9 +369,9 @@ data class RecentItem(
     val year: Int
 )
 
-/** Adapter usado pelas duas listas horizontais */
+/** Adapter usado pela lista horizontal de recentes */
 class RecentItemAdapter(
-    private val items: List<RecentItem>,
+    private var items: List<RecentItem>,
     private val onClick: (RecentItem) -> Unit
 ) : androidx.recyclerview.widget.RecyclerView.Adapter<RecentItemAdapter.VH>() {
 
@@ -319,7 +387,7 @@ class RecentItemAdapter(
         viewType: Int
     ): VH {
         val v = android.view.LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_recent_movie, parent, false)
+            .inflate(R.layout.item_recent, parent, false)
         return VH(v)
     }
 
@@ -329,7 +397,7 @@ class RecentItemAdapter(
 
         Glide.with(holder.view.context)
             .load(item.icon)
-            .placeholder(R.mipmap.ic_launcher)
+            .placeholder(R.drawable.bg_placeholder_poster) // use um drawable leve
             .centerCrop()
             .into(holder.imgPoster)
 
@@ -337,4 +405,9 @@ class RecentItemAdapter(
     }
 
     override fun getItemCount(): Int = items.size
+
+    fun updateItems(newItems: List<RecentItem>) {
+        items = newItems
+        notifyDataSetChanged()
+    }
 }
